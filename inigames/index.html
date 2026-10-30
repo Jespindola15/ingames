@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>inigames</title>
+<meta name="description" content="Juegos para jugar en el navegador, solo o con amigos.">
+<meta name="theme-color" content="#e9edf2">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232f5bea'/%3E%3Cpath d='M8 8h8v8H8zM16 16h8v8h-8z' fill='%23fff'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #e9edf2;
+    --ink: #12233a;
+    --muted: #55657a;
+    --panel: #ffffff;
+    --line: #c9d2de;
+    --cobalt: #2f5bea;
+    --display: "Bricolage Grotesque", "Arial Black", Impact, sans-serif;
+    --body: "DM Sans", "Helvetica Neue", Arial, sans-serif;
+    color-scheme: light dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1a2b;
+      --ink: #eaf0f8;
+      --muted: #9fb0c6;
+      --panel: #172640;
+      --line: #2a3d5c;
+      --cobalt: #7d9bff;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 400 1rem/1.5 var(--body);
+    padding: env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px);
+  }
+  a { color: inherit; }
+  :focus-visible { outline: 3px solid var(--cobalt); outline-offset: 3px; }
+
+  .wrap { width: min(1080px, 100% - 40px); margin-inline: auto; }
+
+  header { padding: 36px 0 12px; display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  .mark {
+    font: 800 clamp(2.6rem, 9vw, 4.4rem)/0.9 var(--display);
+    letter-spacing: -0.045em;
+    margin: 0;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .flag {            /* dos cuadros de bandera a cuadros: el único adorno del encabezado */
+    width: 0.62em; height: 0.62em; flex: none;
+    background:
+      linear-gradient(var(--ink), var(--ink)) 0 0 / 50% 50% no-repeat,
+      linear-gradient(var(--ink), var(--ink)) 100% 100% / 50% 50% no-repeat;
+    border: 3px solid var(--ink);
+  }
+  .tagline { margin: 0; color: var(--muted); max-width: 34ch; }
+
+  h2.sec { font: 800 1.35rem/1.2 var(--display); letter-spacing: -0.01em; margin: 44px 0 6px; }
+  .sec-note { color: var(--muted); margin: 0 0 18px; max-width: 62ch; }
+
+  .grid { display: grid; gap: 20px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr)); }
+
+  /* Juegos propios: panel grande de color con el título cortado contra el borde */
+  .tile {
+    position: relative; overflow: hidden; isolation: isolate;
+    display: flex; flex-direction: column; justify-content: space-between; gap: 28px;
+    min-height: 340px; padding: 24px;
+    border-radius: 14px;
+    background: var(--c, #888); color: var(--t, #fff);
+    text-decoration: none;
+  }
+  .tile::before { content: ""; position: absolute; inset: 0; z-index: -1; opacity: .16; }
+  .tile.check::before {
+    background:
+      conic-gradient(#000 25%, transparent 0 50%, #000 0 75%, transparent 0) 0 0 / 56px 56px;
+  }
+  .tile.stripes::before {
+    background: repeating-linear-gradient(-58deg, #000 0 14px, transparent 14px 44px);
+  }
+  .tile .genre { font-weight: 700; margin: 0; }
+  .tile h3 {
+    font: 800 clamp(2.8rem, 9vw, 4.6rem)/0.88 var(--display);
+    letter-spacing: -0.045em;
+    margin: 0 0 14px -2px;
+    max-width: 8ch;
+  }
+  .tile p.desc { margin: 0; max-width: 40ch; font-size: 1.05rem; }
+  .tile .foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .badges { display: flex; gap: 6px; flex-wrap: wrap; margin: 0; padding: 0; list-style: none; }
+  .badges li {
+    border: 2px solid currentColor; border-radius: 99px;
+    padding: 2px 12px; font-size: .88rem; font-weight: 700;
+  }
+  .play {
+    background: var(--t, #fff); color: var(--c, #000);
+    border-radius: 99px; padding: 12px 24px; font-weight: 700; font-size: 1.05rem;
+  }
+  .tile:hover .play, .tile:focus-visible .play { transform: translateY(-2px); }
+  @media (prefers-reduced-motion: no-preference) { .play { transition: transform .12s; } }
+
+  /* Biblioteca local: filas sobrias, no tiles */
+  .local { border: 2px solid var(--line); border-radius: 14px; background: var(--panel); }
+  .local .row {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+    padding: 14px 18px; border-top: 1px solid var(--line);
+  }
+  .local .row:first-child { border-top: 0; }
+  .local .name { font-weight: 700; }
+  .local .id { color: var(--muted); font-size: .9rem; }
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  button, .btn {
+    font: 700 .95rem var(--body);
+    background: var(--cobalt); color: #fff; border: 0; border-radius: 8px;
+    padding: 9px 16px; cursor: pointer; text-decoration: none; display: inline-block;
+  }
+  @media (prefers-color-scheme: dark) { button, .btn { color: #0f1a2b; } }
+  .btn.ghost, button.ghost { background: transparent; color: var(--ink); border: 2px solid var(--line); }
+  .empty { padding: 20px 18px; color: var(--muted); }
+  .empty code, .help code { background: var(--bg); padding: 2px 6px; border-radius: 4px; }
+  .help { color: var(--muted); font-size: .95rem; margin: 12px 4px 0; }
+
+  footer { margin: 56px 0 40px; color: var(--muted); font-size: .92rem; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1 class="mark"><span class="flag" aria-hidden="true"></span>inigames</h1>
+    <p class="tagline">Juegos para jugar en el navegador, solos o con amigos. Sin instalar nada.</p>
+  </header>
+
+  <main>
+    <h2 class="sec">Hechos por mí</h2>
+    <p class="sec-note">Abrí uno y jugá. Los dos tienen salas online para correr contra tus amigos.</p>
+    <div class="grid" id="propios"></div>
+
+    <section id="seccion-local" hidden>
+      <h2 class="sec">Mis discos</h2>
+      <p class="sec-note">Esta parte solo aparece cuando abrís la página en tu propia PC. Los juegos corren desde tus ISO, en tu computadora.</p>
+      <div class="local" id="local"></div>
+      <p class="help">Se juega de a un juego por vez: corré el comando en la terminal, esperá a que diga que está listo y tocá <b>Abrir</b>.</p>
+
+      <h2 class="sec">Jugar de a dos</h2>
+      <p class="sec-note">Sala para jugar online con un amigo. Primero hay que tener el servidor de salas andando: <code>node online/server.js</code>.</p>
+      <div class="local">
+        <div class="row">
+          <div><div class="name">Sala de amigos</div><div class="id">Código de 5 letras, ping y chat</div></div>
+          <div class="actions"><a class="btn" id="lobby-link" href="http://localhost:8787/" target="_blank" rel="noopener">Abrir sala</a></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p>Para sumar un juego nuevo, agregalo a la lista <code>JUEGOS</code> al final de este archivo.</p>
+  </footer>
+</div>
+
+<script>
+/* ---------------------------------------------------------------
+   Agregá tus juegos nuevos acá. Cada uno es un bloque como estos:
+   color = fondo del panel, tinta = color del texto,
+   patron = "check" (cuadros) o "stripes" (rayas)
+---------------------------------------------------------------- */
+const JUEGOS = [
+  {
+    id: 'revolt-barrio',
+    titulo: 'Re-Volt Barrio',
+    genero: 'Carreras',
+    desc: 'Autos de juguete por el barrio: armas, bocina y frases para tus rivales online.',
+    url: 'https://web-revolt.netlify.app/',
+    color: '#ffb400', tinta: '#1b1400', patron: 'check',
+    etiquetas: ['Online', 'Teclado', 'Mando']
+  },
+  {
+    id: 'apex-25',
+    titulo: 'Apex 25',
+    genero: 'Simulador de F1',
+    desc: 'Fórmula 1 en 3D: temporada, boxes, clima variable y salas online con amigos.',
+    url: 'https://apex-online-iota.vercel.app/',
+    color: '#d9201a', tinta: '#ffffff', patron: 'stripes',
+    etiquetas: ['Online', 'Teclado', 'Mando', 'Táctil']
+  }
+];
+
+/* ---- No hace falta tocar nada de acá para abajo ---- */
+const el = (tag, props = {}, ...kids) => {
+  const n = Object.assign(document.createElement(tag), props);
+  kids.flat().forEach((k) => n.append(k));
+  return n;
+};
+
+function dibujarPropios() {
+  const cont = document.getElementById('propios');
+  for (const j of JUEGOS) {
+    const a = el('a', { className: `tile ${j.patron || ''}`, href: j.url, target: '_blank', rel: 'noopener' });
+    a.style.setProperty('--c', j.color);
+    a.style.setProperty('--t', j.tinta);
+    a.setAttribute('aria-label', `Jugar a ${j.titulo}`);
+    a.append(
+      el('div', {},
+        el('p', { className: 'genre', textContent: j.genero }),
+        el('h3', { textContent: j.titulo }),
+        el('p', { className: 'desc', textContent: j.desc })),
+      el('div', { className: 'foot' },
+        el('ul', { className: 'badges' }, j.etiquetas.map((e) => el('li', { textContent: e }))),
+        el('span', { className: 'play', textContent: 'Jugar' }))
+    );
+    cont.append(a);
+  }
+}
+
+const host = location.hostname;
+const esLocal =
+  host === 'localhost' || host === '127.0.0.1' || host.endsWith('.local') ||
+  /^(192\.168|10\.)/.test(host) || new URLSearchParams(location.search).has('local');
+
+async function copiar(texto, boton) {
+  try { await navigator.clipboard.writeText(texto); }
+  catch {
+    const t = el('textarea', { value: texto });
+    document.body.append(t); t.select(); document.execCommand('copy'); t.remove();
+  }
+  const antes = boton.textContent;
+  boton.textContent = 'Copiado';
+  setTimeout(() => { boton.textContent = antes; }, 1400);
+}
+
+async function dibujarLocal() {
+  document.getElementById('seccion-local').hidden = false;
+  document.getElementById('lobby-link').href = `http://${host || 'localhost'}:8787/`;
+  const cont = document.getElementById('local');
+  let lista = [];
+  try {
+    const r = await fetch('biblioteca-local.json', { cache: 'no-store' });
+    if (r.ok) lista = await r.json();
+  } catch { /* sin biblioteca todavía */ }
+
+  if (!Array.isArray(lista) || lista.length === 0) {
+    cont.append(el('div', { className: 'empty' },
+      'Todavía no agregaste ningún disco. Copiá tu ISO a ',
+      el('code', { textContent: 'juegos/' }), ' y corré ',
+      el('code', { textContent: './agregar-juego.sh nombre juegos/archivo.iso' }), '.'));
+    return;
+  }
+  for (const j of lista) {
+    const cmd = `./jugar.sh ${j.id}`;
+    const copy = el('button', { className: 'ghost', textContent: 'Copiar comando', type: 'button' });
+    copy.onclick = () => copiar(cmd, copy);
+    cont.append(el('div', { className: 'row' },
+      el('div', {}, el('div', { className: 'name', textContent: j.titulo }), el('div', { className: 'id', textContent: `${(j.plataforma || 'ps2').toUpperCase()} · ${cmd}` })),
+      el('div', { className: 'actions' }, copy,
+        el('a', { className: 'btn', href: `http://localhost:${j.plataforma === 'psp' ? 8613 : 8620}/`, target: '_blank', rel: 'noopener', textContent: 'Abrir' }))));
+  }
+}
+
+dibujarPropios();
+if (esLocal) dibujarLocal();
+</script>
+</body>
+</html>

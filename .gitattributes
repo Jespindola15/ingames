@@ -1,0 +1,3 @@
+# Los scripts tienen que quedar con saltos de línea de Linux, o fallan en WSL
+*.sh text eol=lf
+*.js text eol=lf

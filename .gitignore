@@ -1,0 +1,16 @@
+# Nunca subir juegos ni lo que se genera a partir de ellos
+juegos/*
+!juegos/.gitkeep
+engine/
+engine-psp/
+*.iso
+*.cso
+*.7z
+*.zip
+*.ps2
+
+# Datos locales
+inigames/biblioteca-local.json
+node_modules/
+.DS_Store
+Thumbs.db

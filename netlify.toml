@@ -1,0 +1,3 @@
+# Si el repo se conecta a Netlify, publica solo la web (no los scripts ni lo demás)
+[build]
+  publish = "inigames"
