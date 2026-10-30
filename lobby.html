@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sala para jugar de a dos</title>
+<style>
+  :root {
+    --asphalt: #26282a;
+    --asphalt-2: #34373a;
+    --chalk: #efede6;
+    --paint: #f0c419;
+    --muted: #a7a89f;
+    --ok: #7fd18b;
+    --bad: #ff8a7a;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--asphalt);
+    color: var(--chalk);
+    font: 16px/1.5 "Helvetica Neue", Arial, sans-serif;
+    padding: max(20px, env(safe-area-inset-top)) 20px max(20px, env(safe-area-inset-bottom));
+  }
+  main { max-width: 640px; margin: 0 auto; }
+  h1 {
+    font: 800 clamp(2rem, 8vw, 3.4rem)/1 "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+    letter-spacing: -0.02em;
+    margin: 24px 0 8px;
+  }
+  .lead { color: var(--muted); margin: 0 0 28px; max-width: 52ch; }
+  .court {
+    border: 2px solid var(--chalk);
+    border-radius: 4px;
+    padding: 20px;
+    position: relative;
+    margin-bottom: 20px;
+  }
+  .court::before {            /* línea de mitad de cancha */
+    content: "";
+    position: absolute; left: 0; right: 0; top: 50%;
+    border-top: 2px dashed rgba(239,237,230,.07);
+    pointer-events: none;
+  }
+  h2 { font-size: 1.1rem; margin: 0 0 12px; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  input {
+    flex: 1 1 140px; min-width: 0;
+    background: var(--asphalt-2); color: var(--chalk);
+    border: 2px solid transparent; border-radius: 4px;
+    padding: 12px 14px; font: inherit; letter-spacing: .12em; text-transform: uppercase;
+  }
+  input.free { letter-spacing: normal; text-transform: none; }
+  input:focus-visible, button:focus-visible { outline: 3px solid var(--paint); outline-offset: 2px; }
+  button {
+    background: var(--paint); color: #1b1b1b; border: 0; border-radius: 4px;
+    padding: 12px 18px; font-family: inherit; font-size: 1rem; font-weight: 700; cursor: pointer;
+  }
+  button.ghost { background: transparent; color: var(--chalk); border: 2px solid var(--chalk); }
+  button:disabled { opacity: .4; cursor: not-allowed; }
+  .code {
+    font: 800 clamp(2.4rem, 12vw, 4rem)/1 "Arial Narrow", Arial, sans-serif;
+    letter-spacing: .18em; color: var(--paint); margin: 4px 0 8px;
+  }
+  .status { color: var(--muted); min-height: 1.5em; }
+  .status.ok { color: var(--ok); }
+  .status.bad { color: var(--bad); }
+  #log {
+    list-style: none; margin: 0 0 12px; padding: 0;
+    height: 160px; overflow-y: auto; background: var(--asphalt-2); border-radius: 4px;
+  }
+  #log li { padding: 6px 12px; }
+  #log li.sys { color: var(--muted); }
+  #log li.me { color: var(--paint); }
+  [hidden] { display: none !important; }
+  @media (prefers-reduced-motion: no-preference) { button { transition: transform .08s; } button:active { transform: translateY(1px); } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Jugar de a dos</h1>
+  <p class="lead">Uno crea la sala y le pasa el código al otro. Cada uno corre el juego en su propia PC; esta página solo conecta a los dos.</p>
+
+  <section class="court" aria-labelledby="h-conn">
+    <h2 id="h-conn">Conexión</h2>
+    <div class="row">
+      <input id="url" class="free" aria-label="Dirección del servidor" spellcheck="false">
+      <button id="connect">Conectar</button>
+    </div>
+    <p id="conn-status" class="status" role="status">Sin conectar.</p>
+  </section>
+
+  <section class="court" id="lobby" aria-labelledby="h-room" hidden>
+    <h2 id="h-room">Sala</h2>
+    <div class="row">
+      <button id="create">Crear sala nueva</button>
+      <input id="code" maxlength="5" placeholder="Código" aria-label="Código de la sala" autocomplete="off">
+      <button id="join" class="ghost">Entrar</button>
+    </div>
+    <div id="room-box" hidden>
+      <div class="code" id="room-code" aria-live="polite"></div>
+      <p id="room-status" class="status" role="status"></p>
+    </div>
+  </section>
+
+  <section class="court" id="chat" aria-labelledby="h-chat" hidden>
+    <h2 id="h-chat">Chat</h2>
+    <ul id="log" aria-live="polite"></ul>
+    <div class="row">
+      <input id="msg" class="free" placeholder="Escribí un mensaje" aria-label="Mensaje" maxlength="300">
+      <button id="send">Enviar</button>
+    </div>
+  </section>
+</main>
+
+<script src="netplay-client.js"></script>
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  $('url').value = location.host ? `${proto}://${location.host}` : 'ws://localhost:8787';
+
+  let net = null;
+  let pingTimer = null;
+
+  const setStatus = (el, text, cls = '') => { el.textContent = text; el.className = 'status ' + cls; };
+  const say = (text, cls = '') => {
+    const li = document.createElement('li');
+    li.textContent = text; li.className = cls;
+    $('log').appendChild(li); $('log').scrollTop = $('log').scrollHeight;
+  };
+  const errorText = {
+    'no-room': 'Esa sala no existe. Revisá el código.',
+    'room-full': 'La sala ya tiene dos jugadores.',
+  };
+
+  async function doPing() {
+    if (!net) return;
+    const ms = await net.ping();
+    setStatus($('conn-status'), `Conectado. Latencia con el servidor: ${ms} ms.`, ms < 120 ? 'ok' : 'bad');
+  }
+
+  $('connect').onclick = async () => {
+    clearInterval(pingTimer);
+    net = new NetplayClient($('url').value.trim());
+    setStatus($('conn-status'), 'Conectando…');
+    try { await net.connect(); } catch (e) { return setStatus($('conn-status'), e.message, 'bad'); }
+    net.on('closed', () => {
+      clearInterval(pingTimer);
+      setStatus($('conn-status'), 'Se perdió la conexión. Volvé a conectar.', 'bad');
+      $('lobby').hidden = true; $('chat').hidden = true;
+    });
+    net.on('peer-joined', () => { setStatus($('room-status'), 'Tu rival entró. Ya pueden empezar.', 'ok'); say('Tu rival entró a la sala.', 'sys'); });
+    net.on('peer-left', () => { setStatus($('room-status'), 'Tu rival salió de la sala.', 'bad'); say('Tu rival salió.', 'sys'); });
+    net.on('chat', (m) => say('Rival: ' + m.text));
+    await doPing();
+    pingTimer = setInterval(doPing, 5000);
+    $('lobby').hidden = false; $('chat').hidden = false;
+  };
+
+  const showRoom = (room, player) => {
+    $('room-box').hidden = false;
+    $('room-code').textContent = room;
+    setStatus($('room-status'), player === 1
+      ? 'Pasale este código a tu amigo y esperá a que entre.'
+      : 'Entraste a la sala. Sos el jugador 2.', player === 1 ? '' : 'ok');
+    say(`Sala ${room} lista. Sos el jugador ${player}.`, 'sys');
+  };
+
+  $('create').onclick = async () => {
+    try { const r = await net.createRoom(); showRoom(r.room, r.player); }
+    catch (e) { setStatus($('room-status'), errorText[e.message] || e.message, 'bad'); $('room-box').hidden = false; }
+  };
+  $('join').onclick = async () => {
+    const code = $('code').value.trim();
+    if (!code) return $('code').focus();
+    try { const r = await net.joinRoom(code); showRoom(r.room, r.player); }
+    catch (e) { $('room-box').hidden = false; $('room-code').textContent = ''; setStatus($('room-status'), errorText[e.message] || e.message, 'bad'); }
+  };
+  const sendMsg = () => {
+    const t = $('msg').value.trim();
+    if (!t || !net) return;
+    net.chat(t); say('Vos: ' + t, 'me'); $('msg').value = '';
+  };
+  $('send').onclick = sendMsg;
+  $('msg').onkeydown = (e) => { if (e.key === 'Enter') sendMsg(); };
+})();
+</script>
+</body>
+</html>
